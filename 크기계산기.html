@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>생두 부피 & 표면적 계산기</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+    .fade-in { animation: fadeIn 0.3s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans text-gray-800 flex items-center justify-center p-4">
+
+  <div class="max-w-2xl w-full bg-white rounded-2xl shadow-xl overflow-hidden">
+    
+    <!-- 헤더 -->
+    <header class="bg-emerald-800 text-white p-5 text-center">
+      <h1 class="text-2xl font-bold tracking-tight">☕ 생두 3D 형태학 계산기</h1>
+      <p class="text-emerald-200 text-sm mt-1">반타원체 모델 기반 부피(Volume) 및 표면적(Surface Area) 실시간 산출</p>
+    </header>
+
+    <!-- 대시보드 (전체 평균) -->
+    <div class="bg-emerald-50 p-5 border-b border-emerald-100 flex gap-4 justify-center items-center">
+      <div class="text-center bg-white p-4 rounded-xl shadow-sm border border-emerald-100 w-1/3 fade-in">
+        <div class="text-xs font-bold text-gray-500 mb-1">측정된 생두</div>
+        <div class="text-3xl font-black text-emerald-700"><span id="avgCount">0</span><span class="text-sm font-normal text-gray-500 ml-1">알</span></div>
+      </div>
+      <div class="text-center bg-white p-4 rounded-xl shadow-sm border border-blue-100 w-1/3 fade-in">
+        <div class="text-xs font-bold text-blue-500 mb-1">평균 부피 (V)</div>
+        <div class="text-3xl font-black text-blue-700"><span id="avgVol">-</span><span class="text-sm font-normal text-gray-500 ml-1">mm³</span></div>
+      </div>
+      <div class="text-center bg-white p-4 rounded-xl shadow-sm border border-purple-100 w-1/3 fade-in">
+        <div class="text-xs font-bold text-purple-500 mb-1">평균 표면적 (S)</div>
+        <div class="text-3xl font-black text-purple-700"><span id="avgSur">-</span><span class="text-sm font-normal text-gray-500 ml-1">mm²</span></div>
+      </div>
+    </div>
+
+    <!-- 측정값 입력 그리드 -->
+    <div class="p-5">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-sm font-bold text-gray-700 flex items-center gap-2">
+          📏 개별 실측 데이터 입력 
+          <span class="text-xs font-normal text-gray-400">(소수점 생략 입력 가능)</span>
+        </h2>
+        <button type="button" onclick="clearGrid()" class="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 font-bold text-xs rounded-lg transition-colors border border-red-200">
+          초기화
+        </button>
+      </div>
+
+      <!-- 그리드 헤더 -->
+      <div class="grid grid-cols-6 gap-2 text-center font-bold text-gray-500 text-xs px-2 mb-2">
+        <div class="col-span-1">번호</div>
+        <div class="col-span-1">길이 (L)</div>
+        <div class="col-span-1">폭 (W)</div>
+        <div class="col-span-1">두께 (T)</div>
+        <div class="col-span-1 text-blue-600">부피 (mm³)</div>
+        <div class="col-span-1 text-purple-600">표면적 (mm²)</div>
+      </div>
+
+      <!-- 20알 입력 폼 컨테이너 -->
+      <div id="beanGrid" class="space-y-1.5 max-h-[50vh] overflow-y-auto pr-2 pb-4">
+        <!-- JS로 동적 생성 -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 페이지 로드 시 20개 입력창 렌더링
+    window.addEventListener('DOMContentLoaded', () => {
+      buildGrid();
+    });
+
+    // 20개의 입력 행 생성
+    function buildGrid() {
+      const container = document.getElementById('beanGrid');
+      container.innerHTML = '';
+
+      for (let i = 1; i <= 20; i++) {
+        const row = document.createElement('div');
+        row.className = 'grid grid-cols-6 gap-2 items-center bg-gray-50 hover:bg-emerald-50/50 p-1.5 rounded-lg border border-transparent hover:border-emerald-100 transition-colors text-sm';
+        row.innerHTML = `
+          <div class="col-span-1 text-center font-bold text-gray-400">#${i}</div>
+          <div class="col-span-1">
+            <input type="number" step="0.01" id="bLen_${i}" oninput="calcBean(${i})" placeholder="L" class="w-full p-2 border rounded-md text-center focus:ring-2 focus:ring-emerald-400 outline-none bg-white font-medium text-gray-700 shadow-sm transition-all">
+          </div>
+          <div class="col-span-1">
+            <input type="number" step="0.01" id="bWid_${i}" oninput="calcBean(${i})" placeholder="W" class="w-full p-2 border rounded-md text-center focus:ring-2 focus:ring-emerald-400 outline-none bg-white font-medium text-gray-700 shadow-sm transition-all">
+          </div>
+          <div class="col-span-1">
+            <input type="number" step="0.01" id="bThk_${i}" oninput="calcBean(${i})" placeholder="T" class="w-full p-2 border rounded-md text-center focus:ring-2 focus:ring-emerald-400 outline-none bg-white font-medium text-gray-700 shadow-sm transition-all">
+          </div>
+          <div class="col-span-1 text-center">
+            <span id="bVol_${i}" class="font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">-</span>
+          </div>
+          <div class="col-span-1 text-center">
+            <span id="bSur_${i}" class="font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded">-</span>
+          </div>
+        `;
+        container.appendChild(row);
+      }
+    }
+
+    // ★ 생두 계산 코어 로직
+    function calcBean(index) {
+      const lRaw = parseFloat(document.getElementById(`bLen_${index}`).value);
+      const wRaw = parseFloat(document.getElementById(`bWid_${index}`).value);
+      const tRaw = parseFloat(document.getElementById(`bThk_${index}`).value);
+
+      const volEl = document.getElementById(`bVol_${index}`);
+      const surEl = document.getElementById(`bSur_${index}`);
+
+      // 세 값이 모두 양수로 입력되었을 때만 계산
+      if (lRaw > 0 && wRaw > 0 && tRaw > 0) {
+        
+        // [스마트 스케일 보정] 소수점 생략(예: 74) 입력 시 자동으로 7.4mm로 환산
+        let l = lRaw > 20 ? lRaw / 10 : lRaw;
+        let w = wRaw > 20 ? wRaw / 10 : wRaw;
+        let t = tRaw > 20 ? tRaw / 10 : tRaw;
+
+        // 1. 반타원체 부피 계산 (V = pi/6 * L * W * T)
+        const vol = (Math.PI / 6) * l * w * t;
+
+        // 2. 반타원체 표면적 계산 (Knudsen-Thomsen 근사식 적용)
+        const a = l / 2;
+        const b = w / 2;
+        const c = t; // 반타원체의 높이는 곧 두께
+        const p = 1.6075;
+
+        // 바닥 평면(타원) 면적
+        const baseArea = Math.PI * a * b; 
+        
+        // 상단 곡면(반타원체) 면적
+        const curvedAreaTerm = (Math.pow(a * b, p) + Math.pow(a * c, p) + Math.pow(b * c, p)) / 3;
+        const curvedArea = 2 * Math.PI * Math.pow(curvedAreaTerm, 1 / p);
+        
+        // 전체 표면적
+        const sur = baseArea + curvedArea;
+
+        volEl.textContent = vol.toFixed(1);
+        surEl.textContent = sur.toFixed(1);
+      } else {
+        volEl.textContent = '-';
+        surEl.textContent = '-';
+      }
+      
+      // 개별 계산 후 전체 평균 즉시 갱신
+      calcAverages();
+    }
+
+    // ★ 전체 평균 산출 로직
+    function calcAverages() {
+      let totalVol = 0, totalSur = 0, count = 0;
+      
+      for (let i = 1; i <= 20; i++) {
+        const volText = document.getElementById(`bVol_${i}`).textContent;
+        const surText = document.getElementById(`bSur_${i}`).textContent;
+        
+        if (volText !== '-' && surText !== '-') {
+          totalVol += parseFloat(volText);
+          totalSur += parseFloat(surText);
+          count++;
+        }
+      }
+
+      document.getElementById('avgCount').textContent = count;
+
+      if (count > 0) {
+        document.getElementById('avgVol').textContent = (totalVol / count).toFixed(1);
+        document.getElementById('avgSur').textContent = (totalSur / count).toFixed(1);
+      } else {
+        document.getElementById('avgVol').textContent = '-';
+        document.getElementById('avgSur').textContent = '-';
+      }
+    }
+
+    // 초기화 버튼 리셋 로직
+    function clearGrid() {
+      for (let i = 1; i <= 20; i++) {
+        document.getElementById(`bLen_${i}`).value = '';
+        document.getElementById(`bWid_${i}`).value = '';
+        document.getElementById(`bThk_${i}`).value = '';
+        document.getElementById(`bVol_${i}`).textContent = '-';
+        document.getElementById(`bSur_${i}`).textContent = '-';
+      }
+      calcAverages();
+    }
+  </script>
+</body>
+</html>
